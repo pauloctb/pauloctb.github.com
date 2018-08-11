@@ -16,7 +16,7 @@ Pan: <input type="range" min="-100" max="100" value="0" oninput="VolumeSample.ch
 <p><input type="button" onclick="VolumeSample.compression();" value="Compression"></p>
 
 
-<script type="text/javascript" src="http://10.65.10.47:8000/script/buffer-loader.js"></script>
+<script type="text/javascript" src="/script/buffer-loader.js"></script>
 <script type="text/javascript">
 
 window.onload = init;
@@ -47,10 +47,10 @@ function init() {
   bufferLoader = new BufferLoader(
     context,
     [
-      'http://10.65.10.47:8000/1.wav',
-      'http://10.65.10.47:8000/2.wav',
-      'http://10.65.10.47:8000/3.wav',
-      'http://10.65.10.47:8000/4.wav',
+      '1.wav',
+      '2.wav',
+      '3.wav',
+      '4.wav',
     ],
     finishedLoading
     );
