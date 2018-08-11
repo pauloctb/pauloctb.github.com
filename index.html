@@ -1,0 +1,194 @@
+<p>Battery: <input type="button" onclick="VolumeSample.toggle(0);" value="Play/Pause">
+Volume: <input type="range" min="0" max="300" value="150" oninput="VolumeSample.changeVolume(0,this);">
+Pan: <input type="range" min="-100" max="100" value="0" oninput="VolumeSample.changePan(0,this);"></p>
+<p>Bass: <input type="button" onclick="VolumeSample.toggle(1);" value="Play/Pause"> 
+Volume: <input type="range" min="0" max="300" value="150" oninput="VolumeSample.changeVolume(1,this);">
+Pan: <input type="range" min="-100" max="100" value="0" oninput="VolumeSample.changePan(1,this);"></p>
+
+<p>Guitar: <input type="button" onclick="VolumeSample.toggle(2);" value="Play/Pause">
+Volume: <input type="range" min="0" max="300" value="150" oninput="VolumeSample.changeVolume(2,this);">
+Pan: <input type="range" min="-100" max="100" value="0" oninput="VolumeSample.changePan(2,this);"></p>
+
+<p>Vocals: <input type="button" onclick="VolumeSample.toggle(3);" value="Play/Pause">
+Volume: <input type="range" min="0" max="300" value="150" oninput="VolumeSample.changeVolume(3,this);">
+Pan: <input type="range" min="-100" max="100" value="0" oninput="VolumeSample.changePan(3,this);"></p>
+
+<p><input type="button" onclick="VolumeSample.compression();" value="Compression"></p>
+
+
+<script type="text/javascript" src="http://10.65.10.47:8000/script/buffer-loader.js"></script>
+<script type="text/javascript">
+
+window.onload = init;
+var context;
+var bufferLoader;
+var sources= { };
+//var source2;
+var VolumeSample = {
+};
+var panNodes= {};
+var gainNodes= {};
+var compressor;
+var buffers;
+var playing= {};
+
+function init() {
+  // Fix up prefixing
+  
+  
+  window.AudioContext = window.AudioContext || window.webkitAudioContext;
+  context = new AudioContext();
+  compressor = context.createDynamicsCompressor();
+  compressor.threshold.setValueAtTime(-50, context.currentTime);
+  compressor.knee.setValueAtTime(40, context.currentTime);
+  compressor.ratio.setValueAtTime(12, context.currentTime);
+  compressor.attack.setValueAtTime(0, context.currentTime);
+  compressor.release.setValueAtTime(0.25, context.currentTime);
+  bufferLoader = new BufferLoader(
+    context,
+    [
+      'http://10.65.10.47:8000/1.wav',
+      'http://10.65.10.47:8000/2.wav',
+      'http://10.65.10.47:8000/3.wav',
+      'http://10.65.10.47:8000/4.wav',
+    ],
+    finishedLoading
+    );
+
+  bufferLoader.load();
+}
+
+function finishedLoading(bufferList) {
+  // Create two sources and play them both together.
+  buffers = bufferList
+  sources[0] = context.createBufferSource();
+  sources[1] = context.createBufferSource();
+  sources[2] = context.createBufferSource();
+  sources[3] = context.createBufferSource();
+  sources[0].buffer = bufferList[0];
+  sources[1].buffer = bufferList[1];
+  sources[2].buffer = bufferList[2];
+  sources[3].buffer = bufferList[3];
+  playing[0]=false;
+  playing[1]=false;
+  playing[2]=false;
+  playing[3]=false;
+  //source1.connect(context.destination);
+  //source2.connect(context.destination);
+  //source1.start(5);
+
+  //source2.start(5);
+}
+
+
+
+// Gain node needs to be mutated by volume control.
+
+VolumeSample.play = function(channel) {
+  if (!context.createGain)
+    context.createGain = context.createGainNode; 
+    panNodes[channel]  = context.createStereoPanner();
+   sources[channel] = context.createBufferSource();
+   sources[channel].buffer = buffers[channel];  
+   gainNodes[channel] = context.createGain();
+   // Connect source to a gain node
+  	  sources[channel].connect(gainNodes[channel]);
+	  gainNodes[channel].gain.value=3;
+  	  gainNodes[channel].connect(panNodes[channel]);
+	  panNodes[channel].connect(compressor);
+  
+  compressor.connect(context.destination);
+
+  // Start playback in a loop
+  //source1.loop = true;
+ 
+ // if (channel == '0'){
+  	sources[channel].start(0, context.currentTime);
+	 if (!sources[channel].start)
+    	 sources[channel].start = sources[channel].noteOn;
+//}
+//  if (channel == '1'){
+//        sources[1].start(0, context.currentTime);
+//         if (!sources[1].start)
+//    	 sources[1].start = sources[1].noteOn; 
+//}
+  this.sources = {};
+  this.sources[channel] = sources[channel];
+ // this.sources[1] = sources[1];
+};
+
+VolumeSample.changeVolume = function(channel,element) {
+  var volume = element.value;
+  var fraction = (parseInt(element.value) / parseInt(element.max))*2;
+  // Let's use an x*x curve (x-squared) since simple linear (x) does not
+  // sound as good.
+  gainNodes[parseInt(channel)].gain.value = fraction*fraction;
+};
+
+VolumeSample.changePan = function(channel,element) {
+  var pan = element.value;
+  var fraction = (parseInt(pan) / parseInt(element.max));
+  // Let's use an x*x curve (x-squared) since simple linear (x) does not
+  // sound as good.
+  panNodes[parseInt(channel)].pan.setValueAtTime(fraction, context.currentTime);
+ };
+
+
+VolumeSample.stop = function(channel) {
+ 
+  if (channel == '0'){
+  	this.sources[0].stop(0);
+        if (!this.sources[0].stop)
+    	this.sources[0].stop = sources[0].noteOff;
+	sources[0].disconnect(gainNodes[0]);
+	}
+  if (channel == '1'){
+        this.sources[1].stop(0);
+        if (!this.sources[1].stop)
+ 	   this.sources[1].stop = sources[1].noteOff;
+        sources[1].disconnect(gainNodes[1]);
+}
+};
+
+VolumeSample.toggle = function(channel) {
+        playing[channel] ? this.stop(channel) : this.play(channel);
+        playing[channel] = !playing[channel];
+
+
+};
+
+VolumeSample.compression = function() {
+  this.compressed ? this.compressionOn() : this.compressionOff();
+  this.compressed = !this.compressed;
+};
+
+VolumeSample.compressionOn = function() {
+    if(panNodes[0]!=null){
+    panNodes[0].disconnect(context.destination);
+    panNodes[0].connect(compressor);
+   }
+    if(panNodes[1]!=null){
+    panNodes[1].disconnect(context.destination);
+    panNodes[1].connect(compressor);
+    }
+    compressor.connect(context.destination);
+};
+
+VolumeSample.compressionOff = function() {
+  // panNode.disconnect(compressor);
+    compressor.disconnect(context.destination);
+    if(panNodes[0]!=null)
+    panNodes[0].connect(context.destination);
+    if(panNodes[1]!=null)
+    panNodes[1].connect(context.destination);
+    if(panNodes[2]!=null)
+    panNodes[2].connect(context.destination);
+    if(panNodes[3]!=null)
+    panNodes[3].connect(context.destination);
+
+
+};
+
+
+</script>
+
